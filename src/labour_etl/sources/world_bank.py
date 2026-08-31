@@ -110,14 +110,21 @@ class WorldBankSource(Source):
                     continue
 
                 try:
-                    observations.append(
-                        Observation.create(
-                            source_key=self.key,
-                            country_iso3=code,
-                            year=record.get("date"),
-                            value=record.get("value"),
-                        )
+                    observation = Observation.create(
+                        source_key=self.key,
+                        country_iso3=code,
+                        year=record.get("date"),
+                        value=record.get("value"),
                     )
+                    # The request already asks for `date=min_year:2100`, so this
+                    # is defence in depth rather than the primary filter. It
+                    # exists because "the API honoured the parameter" is an
+                    # assumption, and an unhonoured one would quietly widen the
+                    # load by thirty years.
+                    if observation.year < config.min_year:
+                        skipped += 1
+                    else:
+                        observations.append(observation)
                 except ValueMissing:
                     # A null value is the API's normal way of saying "no figure
                     # for this year", not a defect worth an operator's attention.
