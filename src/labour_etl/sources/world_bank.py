@@ -105,7 +105,13 @@ class WorldBankSource(Source):
 
                 # Aggregates and countries we do not track are out of scope, not
                 # broken data. They must not inflate the rejection count.
-                if code in KNOWN_AGGREGATE_CODES or not config.wants(code):
+                #
+                # An empty code belongs in the same bucket. The API leaves it
+                # blank for some of its aggregate entities, and treating that as
+                # a malformed row produced eighty rejections on a run where
+                # nothing was actually wrong - which is precisely how a
+                # rejection count stops being worth reading.
+                if not code or code in KNOWN_AGGREGATE_CODES or not config.wants(code):
                     skipped += 1
                     continue
 

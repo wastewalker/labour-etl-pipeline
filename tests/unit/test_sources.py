@@ -346,3 +346,22 @@ class TestExtractorEdgeCases:
     def test_owid_reports_an_empty_body_as_unavailable(self, config: Config) -> None:
         with pytest.raises(SourceUnavailable):
             OwidCsvSource().parse("", config)
+
+    def test_world_bank_skips_an_entity_with_no_country_code(self, config: Config) -> None:
+        # The API leaves countryiso3code blank for some aggregate entities.
+        # Treating that as malformed produced eighty rejections on a live run
+        # where nothing was wrong.
+        payload = [
+            {"page": 1, "pages": 1},
+            [
+                {"countryiso3code": "", "date": "2020", "value": 6.5},
+                {"countryiso3code": "BOL", "date": "2020", "value": 7.9},
+            ],
+        ]
+
+        with client_returning(lambda r: httpx.Response(200, json=payload)) as client:
+            result = WorldBankSource(client).extract(config)
+
+        assert [o.country_iso3 for o in result.observations] == ["BOL"]
+        assert result.rejections == ()
+        assert result.skipped == 1
