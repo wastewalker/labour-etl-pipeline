@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch cancels the previous run: a queue of stale runs
+# tells you nothing and delays the one result you want.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  quality:
+    name: Lint, format and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Typecheck
+        run: mypy
+
+  test:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      # The integration suite starts its own PostgreSQL through Testcontainers,
+      # so there is no `services:` block here. That is deliberate: the same
+      # `pytest` command runs identically on a laptop and on this runner, and
+      # there is no second copy of the database configuration to drift.
+      #
+      # Nothing in this job touches the network beyond the package index. The
+      # extractors are tested against saved fixtures, so a public website being
+      # slow can never turn this build red. The scheduled workflow is where the
+      # real sources get exercised.
+      - name: Run tests with coverage
+        run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage'
+            echo ''
+            echo '```'
+            python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("coverage.xml").getroot()
+          lines = float(root.get("line-rate", 0)) * 100
+          branches = float(root.get("branch-rate", 0)) * 100
+          print(f"lines     {lines:.2f}%")
+          print(f"branches  {branches:.2f}%")
+          PY
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 14
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t labour-etl:ci .
+
+      # Building an image proves it compiles; it does not prove it runs. This
+      # brings up the real stack and drives the CLI against it, which also
+      # exercises the migrations and the ledger queries.
+      #
+      # It stops short of `run`, because that would reach out to three public
+      # websites and make this build's colour depend on their uptime.
+      - name: Migrate and query against a real database
+        run: |
+          set -euo pipefail
+          docker compose up -d db
+          docker compose run --rm etl migrate
+          docker compose run --rm etl migrate   # must be idempotent
+          docker compose run --rm etl status
+          docker compose run --rm etl report
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

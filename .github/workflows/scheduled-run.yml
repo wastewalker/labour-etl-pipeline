@@ -1,0 +1,83 @@
+name: Scheduled run
+
+# The one job that touches the real sources.
+#
+# Its database is a service container, so nothing persists between runs. That is
+# on purpose: this repository has no hosted database, and pretending otherwise
+# would be worse than saying so. What this job actually proves, every morning,
+# is that the three extractors still understand what the three publishers are
+# currently serving - which is the thing most likely to break in a pipeline like
+# this, and the thing a green unit suite against saved fixtures cannot tell you.
+#
+# It goes red only if every source fails. One publisher being down produces a
+# 'partial' run, exit code 0, and a note in the summary - which is the behaviour
+# the pipeline is built for, and the reason this badge stays meaningful.
+
+on:
+  schedule:
+    # 06:15 UTC daily. Off the hour on purpose: the top of the hour is when
+    # GitHub's scheduler is busiest and runs get delayed.
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    name: Load from the live sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: labour
+          POSTGRES_PASSWORD: labour
+          POSTGRES_DB: labour_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U labour -d labour_etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://labour:labour@localhost:5432/labour_etl
+      LOG_LEVEL: INFO
+      COUNTRY_FILTER: BOL,PER,CHL,ARG,BRA,COL,ECU,PRY,URY,MEX
+      MIN_YEAR: 2010
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Run the pipeline
+        id: pipeline
+        run: labour-etl run --triggered-by schedule | tee run.log
+
+      - name: Show where the sources disagree
+        run: labour-etl report --limit 15 | tee report.log
+
+      - name: Write the run to the job summary
+        if: always()
+        run: |
+          {
+            echo '## Scheduled run'
+            echo ''
+            echo '```'
+            cat run.log 2>/dev/null || echo 'The pipeline produced no output.'
+            echo '```'
+            echo ''
+            echo '### Source disagreement'
+            echo ''
+            echo '```'
+            cat report.log 2>/dev/null || echo 'No report produced.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
