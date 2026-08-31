@@ -57,6 +57,7 @@ select = [
     "DTZ",  # naive datetimes - a run ledger with local timestamps is a debugging trap
     "T20",  # no stray print() outside the CLI
     "SIM",  # simplifications
+    "BLE",  # blind excepts - deliberate here, so they must be justified inline
     "PTH",  # pathlib over os.path
     "RUF",
 ]
@@ -64,6 +65,10 @@ ignore = [
     # Long messages in raised exceptions are deliberate here: the operator
     # reading a failed run in the ledger needs the whole sentence.
     "TRY003",
+    # The exception names describe a state rather than an error object, and
+    # they are chosen to read well at the call site: `except RecordRejected`
+    # says what happened; `except RecordRejectedError` says it twice.
+    "N818",
 ]
 
 [tool.ruff.lint.per-file-ignores]

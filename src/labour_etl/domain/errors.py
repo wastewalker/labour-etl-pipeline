@@ -56,3 +56,17 @@ class RecordRejected(EtlError):
         super().__init__(reason)
         self.reason = reason
         self.raw = raw
+
+
+class ValueMissing(RecordRejected):
+    """The source published this row but left the figure blank.
+
+    A subclass rather than a separate branch at every call site, so code that
+    only cares about "this row did not produce an observation" still catches it,
+    while the sources - which do care - can tell it apart from a value they
+    failed to parse.
+
+    The distinction matters for the ledger. Bolivia having no 2019 figure is the
+    source working normally; a figure of 'twelve' is a parser that needs
+    attention. Counting both as rejections means nobody ever looks at either.
+    """

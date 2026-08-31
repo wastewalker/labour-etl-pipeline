@@ -1,8 +1,12 @@
 """Turning three sources' spellings of the same fact into one shape.
 
-Every function here raises ``RecordRejected`` rather than returning ``None`` on
-bad input. That is deliberate: a rejection carries a reason, and the reason is
-what makes the run ledger worth reading six months later.
+Unusable input raises ``RecordRejected`` rather than returning ``None``, because
+a rejection carries a reason and the reason is what makes the run ledger worth
+reading six months later.
+
+The one exception is ``iso3_from_country_name``, which returns ``None`` for a
+country outside this pipeline's scope. That is not a failure to report - it is
+the answer to a different question, and its docstring says so.
 """
 
 from __future__ import annotations
@@ -10,7 +14,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-from .errors import RecordRejected
+from .errors import RecordRejected, ValueMissing
 
 # The earliest year any of the three sources publishes for this indicator.
 MIN_SUPPORTED_YEAR = 1960
@@ -24,12 +28,58 @@ ISO3_PATTERN = re.compile(r"^[A-Z]{3}$")
 # naive sum over the table counts Bolivia twice.
 KNOWN_AGGREGATE_CODES = frozenset(
     {
-        "AFE", "AFW", "ARB", "CAF", "CEB", "CHI", "CSS", "EAP", "EAR", "EAS",
-        "ECA", "ECS", "EMU", "EUU", "FCS", "HIC", "HPC", "IBD", "IBT", "IDA",
-        "IDB", "IDX", "INX", "LAC", "LCN", "LDC", "LIC", "LMC", "LMY", "LTE",
-        "MEA", "MIC", "MNA", "MMR", "NAC", "OED", "OSS", "PRE", "PSS", "PST",
-        "SAS", "SSA", "SSF", "SST", "TEA", "TEC", "TLA", "TMN", "TSA", "TSS",
-        "UMC", "WLD",
+        "AFE",
+        "AFW",
+        "ARB",
+        "CAF",
+        "CEB",
+        "CHI",
+        "CSS",
+        "EAP",
+        "EAR",
+        "EAS",
+        "ECA",
+        "ECS",
+        "EMU",
+        "EUU",
+        "FCS",
+        "HIC",
+        "HPC",
+        "IBD",
+        "IBT",
+        "IDA",
+        "IDB",
+        "IDX",
+        "INX",
+        "LAC",
+        "LCN",
+        "LDC",
+        "LIC",
+        "LMC",
+        "LMY",
+        "LTE",
+        "MEA",
+        "MIC",
+        "MNA",
+        "MMR",
+        "NAC",
+        "OED",
+        "OSS",
+        "PRE",
+        "PSS",
+        "PST",
+        "SAS",
+        "SSA",
+        "SSF",
+        "SST",
+        "TEA",
+        "TEC",
+        "TLA",
+        "TMN",
+        "TSA",
+        "TSS",
+        "UMC",
+        "WLD",
     }
 )
 
@@ -61,17 +111,27 @@ def normalize_iso3(raw: str) -> str:
         raise RecordRejected(f"'{raw}' is not an ISO-3166 alpha-3 country code", raw)
 
     if code in KNOWN_AGGREGATE_CODES:
-        raise RecordRejected(
-            f"'{code}' is a regional or income aggregate, not a country", raw
-        )
+        raise RecordRejected(f"'{code}' is a regional or income aggregate, not a country", raw)
 
     return code
 
 
 # Rendered HTML brings along typography that is invisible to a reader and fatal
-# to a dictionary lookup: narrow and non-breaking spaces, footnote markers, and
-# a trailing asterisk marking a linked article ("Bolivia *").
-_NAME_NOISE = re.compile(r"\[[^\]]*\]|[*   ​]")
+# to a dictionary lookup: footnote markers, a trailing asterisk marking a linked
+# article, and four kinds of space that are not the space key.
+#
+# Written as escapes rather than the characters themselves: a literal U+202F in
+# source code is indistinguishable from a normal space to everyone who reads it
+# afterwards, which is how it got missed the first time.
+_NAME_NOISE = re.compile(
+    r"\[[^\]]*\]"  # footnote marker such as [5]
+    r"|[*"
+    r"\u00a0"  # no-break space
+    r"\u202f"  # narrow no-break space, used between name and asterisk
+    r"\u2009"  # thin space
+    r"\u200b"  # zero-width space
+    r"]"
+)
 
 
 def clean_country_name(raw: str) -> str:
@@ -115,8 +175,7 @@ def normalize_year(raw: object) -> int:
     # year, and around New Year their clock and ours disagree.
     if not MIN_SUPPORTED_YEAR <= year <= current_year + 1:
         raise RecordRejected(
-            f"Year {year} is outside the supported range "
-            f"{MIN_SUPPORTED_YEAR}-{current_year + 1}",
+            f"Year {year} is outside the supported range {MIN_SUPPORTED_YEAR}-{current_year + 1}",
             raw,
         )
 
@@ -155,12 +214,12 @@ def normalize_rate(raw: object) -> float:
     average computed downstream.
     """
     if raw is None:
-        raise RecordRejected("Rate is missing", raw)
+        raise ValueMissing("Rate is missing", raw)
 
     text = _RATE_CLEANUP.sub("", str(raw))
 
     if text.strip().lower() in _MISSING_MARKERS:
-        raise RecordRejected("Rate is missing", raw)
+        raise ValueMissing("Rate is missing", raw)
 
     # Some sources use a comma as the decimal separator. This is only safe
     # because the value is a percentage: there is no thousands separator to
@@ -176,9 +235,7 @@ def normalize_rate(raw: object) -> float:
         raise RecordRejected(f"'{raw}' is not a finite number", raw)
 
     if not 0.0 <= value <= 100.0:
-        raise RecordRejected(
-            f"Unemployment rate {value} is outside the plausible range 0-100", raw
-        )
+        raise RecordRejected(f"Unemployment rate {value} is outside the plausible range 0-100", raw)
 
     # Six decimals is far more precision than any of these sources publishes,
     # and it stops float noise from making two identical figures compare unequal.
