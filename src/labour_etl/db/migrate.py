@@ -76,10 +76,8 @@ def run_migrations(
                 # leaves no partial schema behind, and no ledger row claiming
                 # it succeeded.
                 try:
-                    cur.execute(sql)  # type: ignore[arg-type]
-                    cur.execute(
-                        "INSERT INTO schema_migrations (name) VALUES (%s)", (path.name,)
-                    )
+                    cur.execute(sql)
+                    cur.execute("INSERT INTO schema_migrations (name) VALUES (%s)", (path.name,))
                     conn.commit()
                 except Exception:
                     conn.rollback()
