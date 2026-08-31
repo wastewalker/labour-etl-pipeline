@@ -86,9 +86,7 @@ def fetch_text(
                 )
                 sleep(delay)
 
-        raise SourceUnavailable(
-            source_key, f"{attempts} attempt(s) failed, last was {last_reason}"
-        )
+        raise SourceUnavailable(source_key, f"{attempts} attempt(s) failed, last was {last_reason}")
     finally:
         if owns_client:
             active.close()
