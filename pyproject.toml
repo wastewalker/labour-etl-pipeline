@@ -1,0 +1,114 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "labour-etl-pipeline"
+version = "1.0.0"
+description = "An ETL pipeline that reconciles one labour indicator across three heterogeneous public sources, with per-source failure isolation and a run ledger."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "httpx>=0.28",
+    "beautifulsoup4>=4.13",
+    "lxml>=5.3",
+    "pandas>=2.2",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "testcontainers>=4.9",
+    "pandas-stubs",
+    "types-beautifulsoup4",
+]
+
+[project.scripts]
+labour-etl = "labour_etl.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/labour_etl"]
+
+# ---------------------------------------------------------------------------
+# Ruff handles both linting and formatting, so there is one tool and one config
+# rather than a separate formatter to keep in agreement with the linter.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # import sorting
+    "N",    # naming
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "A",    # shadowed builtins
+    "C4",   # comprehensions
+    "DTZ",  # naive datetimes - a run ledger with local timestamps is a debugging trap
+    "T20",  # no stray print() outside the CLI
+    "SIM",  # simplifications
+    "PTH",  # pathlib over os.path
+    "RUF",
+]
+ignore = [
+    # Long messages in raised exceptions are deliberate here: the operator
+    # reading a failed run in the ledger needs the whole sentence.
+    "TRY003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The CLI is the one place allowed to write to stdout.
+"src/labour_etl/cli.py" = ["T20"]
+# Tests assert on private helpers and use fixture-shaped names.
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_return_any = true
+disallow_any_generics = true
+# Reporting an unused ignore is how a suppression that has outlived the bug
+# gets noticed, rather than accumulating silently.
+warn_unused_ignores = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# testcontainers ships no type information.
+module = ["testcontainers.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "integration: requires a PostgreSQL instance (Testcontainers or TEST_DATABASE_URL)",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src/labour_etl"]
+branch = true
+omit = ["src/labour_etl/cli.py"]
+
+[tool.coverage.report]
+show_missing = true
+# Set just below what the suite achieves, so an honest refactor has room while
+# a real regression fails the build.
+fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
