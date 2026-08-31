@@ -14,6 +14,7 @@ import psycopg
 import pytest
 
 from labour_etl.config import Config
+from labour_etl.db.connection import to_float
 from labour_etl.domain.errors import RecordRejected, SourceUnavailable
 from labour_etl.domain.records import ExtractionResult, Observation
 from labour_etl.pipeline.loader import count_observations
@@ -320,7 +321,7 @@ class TestIdempotence:
             rows = cur.fetchall()
 
         assert len(rows) == 1
-        assert float(rows[0]["value"]) == pytest.approx(7.9)  # type: ignore[arg-type]
+        assert to_float(rows[0]["value"]) == pytest.approx(7.9)
         assert summary.outcomes[0].changed == 1
 
 
@@ -347,7 +348,7 @@ class TestReconciliation:
 
         assert row is not None
         assert row["source_count"] == 3
-        assert float(row["spread"]) == pytest.approx(4.3)  # type: ignore[arg-type]
+        assert to_float(row["spread"]) == pytest.approx(4.3)
         # jsonb_object_agg comes back as a dict; asserting the type is also
         # asserting the view returns the per-source breakdown, not a scalar.
         values_by_source = row["values_by_source"]
@@ -370,7 +371,7 @@ class TestReconciliation:
             row = cur.fetchone()
 
         assert row is not None
-        assert float(row["spread"]) == 0.0  # type: ignore[arg-type]
+        assert to_float(row["spread"]) == 0.0
 
 
 class TestDatabaseConstraints:
