@@ -65,23 +65,16 @@ jobs:
       - name: Run tests with coverage
         run: pytest --cov --cov-report=term-missing --cov-report=xml
 
+      # `coverage report --format=markdown` renders the table directly. An
+      # inline heredoc here would have to be indented to exactly the YAML block
+      # indent to parse, which is a fragile thing to leave in a workflow.
       - name: Publish coverage summary
         if: always()
         run: |
           {
             echo '## Coverage'
             echo ''
-            echo '```'
-            python - <<'PY'
-          import xml.etree.ElementTree as ET
-
-          root = ET.parse("coverage.xml").getroot()
-          lines = float(root.get("line-rate", 0)) * 100
-          branches = float(root.get("branch-rate", 0)) * 100
-          print(f"lines     {lines:.2f}%")
-          print(f"branches  {branches:.2f}%")
-          PY
-            echo '```'
+            coverage report --format=markdown
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage report
