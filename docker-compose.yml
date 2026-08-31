@@ -1,0 +1,36 @@
+# `docker compose run --rm etl run` gives a full pipeline run against a fresh
+# database. Nothing else needs installing.
+
+services:
+  db:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: labour
+      POSTGRES_PASSWORD: labour
+      POSTGRES_DB: labour_etl
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U labour -d labour_etl']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  etl:
+    build: .
+    environment:
+      DATABASE_URL: postgres://labour:labour@db:5432/labour_etl
+      LOG_LEVEL: INFO
+      COUNTRY_FILTER: BOL,PER,CHL,ARG,BRA,COL,ECU,PRY,URY,MEX
+      MIN_YEAR: 2010
+    depends_on:
+      db:
+        # Waiting for the healthcheck, not just for the container to exist:
+        # Postgres accepts connections a few seconds after the process starts,
+        # and migrations run before the first extraction.
+        condition: service_healthy
+
+volumes:
+  postgres_data:
