@@ -6,7 +6,7 @@
 [![Types](https://img.shields.io/badge/mypy-strict-blue)](./pyproject.toml)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-blue)](./pyproject.toml)
 
-An ETL pipeline that loads the same indicator — the unemployment rate — from
+An ETL pipeline that loads the same indicator: the unemployment rate, from
 three public sources that publish it in three different formats, and keeps every
 figure attributed to the source it came from so you can see where they disagree.
 
@@ -54,7 +54,7 @@ is asserted by a test.
 
 This was discovered by running the pipeline, not assumed while designing it. The
 sources stay as they are because the point of the exercise is three *formats*,
-not three *methodologies* — but describing them as three independent measurements
+not three *methodologies*, but describing them as three independent measurements
 would be a claim the data does not support.
 
 ## What it actually produces
@@ -126,7 +126,7 @@ labour-etl run
 
 ### Configuration
 
-All optional except `DATABASE_URL` — see [`.env.example`](./.env.example).
+All optional except `DATABASE_URL`: see [`.env.example`](./.env.example).
 `COUNTRY_FILTER` and `MIN_YEAR` bound the load; leaving them unset loads every
 country and year the sources publish, which is around 6,000 rows.
 
@@ -170,7 +170,7 @@ the two counters are separate.
 
 ### Exit codes
 
-A **partial** run — one source down, two loaded — exits **0**. One flaky public
+A **partial** run: one source down, two loaded, exits **0**. One flaky public
 website out of three is the condition this pipeline is built to absorb, and a
 scheduler that alerts every time a website is briefly slow is a scheduler whose
 alerts get ignored. Only a run where *every* source failed exits 1.
@@ -213,7 +213,7 @@ with the run time — which makes the column mean "when we last looked" instead 
 
 The World Bank returns regional and income aggregates alongside countries, using
 codes that look exactly like ISO-3166 alpha-3: `WLD`, `LCN`, `HIC`. Loading them
-as countries is the easiest way to double count — "Latin America & Caribbean"
+as countries is the easiest way to double count - "Latin America & Caribbean"
 contains Bolivia, so a naive sum over the table counts Bolivia twice. They are
 filtered by an explicit list, and rejected by the validator if one gets through.
 
