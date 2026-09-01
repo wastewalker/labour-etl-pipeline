@@ -1,7 +1,7 @@
 # Labour ETL Pipeline
 
-[![CI](https://github.com/YOUR_GITHUB_USERNAME/labour-etl-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/labour-etl-pipeline/actions/workflows/ci.yml)
-[![Scheduled run](https://github.com/YOUR_GITHUB_USERNAME/labour-etl-pipeline/actions/workflows/scheduled-run.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/labour-etl-pipeline/actions/workflows/scheduled-run.yml)
+[![CI](https://github.com/wastewalker/labour-etl-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/wastewalker/labour-etl-pipeline/actions/workflows/ci.yml)
+[![Scheduled run](https://github.com/wastewalker/labour-etl-pipeline/actions/workflows/scheduled-run.yml/badge.svg)](https://github.com/wastewalker/labour-etl-pipeline/actions/workflows/scheduled-run.yml)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org)
 [![Types](https://img.shields.io/badge/mypy-strict-blue)](./pyproject.toml)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-blue)](./pyproject.toml)

@@ -4,7 +4,7 @@ Built in a working session with [Claude Code](https://claude.com/claude-code) as
 an active participant. This document records what that looked like, including
 every place the model was wrong.
 
-The [companion document in my API project](https://github.com/YOUR_GITHUB_USERNAME/labour-indicators-api/blob/main/AI-WORKFLOW.md)
+The [companion document in my API project](https://github.com/wastewalker/labour-indicators-api/blob/main/AI-WORKFLOW.md)
 covers the general method. This one is about the lesson specific to ETL work,
 which turned out to be sharper than I expected:
 
